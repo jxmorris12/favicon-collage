@@ -44,27 +44,38 @@ def _make_dig(s, num_of_dig):
 from io import BytesIO
 from PIL import Image
 import requests
+import sys
 import time
 
 website_imgs = []
 index = 0
 
+print "Downloading images."
+num_dig_for_str = str(len(link_names))
 for website_name in link_names:
   image_url = 'http://' + website_name + '/favicon.ico'
   index += 1
-  print _make_dig(index, 3), '/', len(link_names)
+  out_update_str = _make_dig(index, len(num_dig_for_str)) + ' / ' + num_dig_for_str
+  sys.stdout.write('%s\r' % out_update_str)
+  sys.stdout.flush()
   try:
     response = requests.get(image_url)
-    time.sleep(1)
+    # Sleep for peace of mind
+    time.sleep(.5)
   except requests.exceptions.ConnectionError:
-    print "Error connecting to", image_url + ".", "Connection reset."
-    error(-1)
+    # Site blocks this type of request. Favicon hosted locally
+    image_filename = 'ico/' + website_name + '.favicon.ico'
+    img = Image.open(image_filename)
+    website_imgs.append(img)
+    continue
   try:
     img = Image.open(BytesIO(response.content)).convert('HSV')
     website_imgs.append(img)
   except IOError:
+    # No image on this page
     website_imgs.append(None)
-
+print
+print "Finished image download."
 #
 #
 # hsv color helper methods
