@@ -26,7 +26,7 @@ top_site_urls = top_500_table.find_all("td",attrs={"class":"url"})
 link_names = []
 for url in top_site_urls:
   link_name = url.find('a').text
-  link_names.append( _t(link_name) )
+  link_names.append( _t(link_name).lower() )
 
 #
 #
@@ -37,7 +37,12 @@ def _make_dig(s, num_of_dig):
     s *= 10
     str_s = '0' + str_s
   return str_s
-
+#
+#
+# special favico redirect links
+favico_cache = {
+  'usda.gov': '/themes/usda/img/favicons/favicon.ico'
+}
 #
 #
 # get images
@@ -53,7 +58,11 @@ index = 0
 print "Downloading images."
 num_dig_for_str = str(len(link_names))
 for website_name in link_names:
-  image_url = 'http://' + website_name + '/favicon.ico'
+  image_url = 'http://' + website_name 
+  if website_name in favico_cache:
+    image_url += favico_cache[website_name]
+  else:
+    image_url += '/favicon.ico'
   index += 1
   out_update_str = _make_dig(index, len(num_dig_for_str)) + ' / ' + num_dig_for_str
   sys.stdout.write('%s\r' % out_update_str)
@@ -61,7 +70,7 @@ for website_name in link_names:
   try:
     response = requests.get(image_url)
     # Sleep for peace of mind
-    time.sleep(.5)
+    time.sleep(0)
   except requests.exceptions.ConnectionError:
     # Site blocks this type of request. Favicon hosted locally
     image_filename = 'ico/' + website_name + '.favicon.ico'
@@ -69,17 +78,22 @@ for website_name in link_names:
     website_imgs.append(img)
     continue
   try:
-    img = Image.open(BytesIO(response.content)).convert('HSV')
-    website_imgs.append(img)
+    img = Image.open(BytesIO(response.content))
+    # For some reason, I have to convert to RGB...
+    rgb_img = img.convert('RGB')
+    # ...and THEN convert to HSV. It's a quirk of PIL.
+    hsv_img = rgb_img.convert('HSV') 
+    website_imgs.append(hsv_img)
   except IOError:
     # No image on this page
     website_imgs.append(None)
 print
 print "Finished image download."
+
 #
 #
 # hsv color helper methods
-# let me discard invalid colors -- too close to black or white (within 2%, I said)
+# let me discard invalid colors -- too close to black or white (within 2%, I said arbitrarily) 
 import numpy
 def color_dist(a,b):  
   # math.hypot should support three arguments :( 
@@ -91,6 +105,7 @@ def color_dist(a,b):
 _black = (0, 0, 0)
 _white = (0, 0, 255)
 _threshold = color_dist(_black, (255,255,255)) * .02
+
 def is_too_black(c):
   return color_dist(_black, c) < _threshold
 
