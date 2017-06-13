@@ -30,23 +30,40 @@ for url in top_site_urls:
 
 #
 #
+# str beautify helper
+def _make_dig(s, num_of_dig):
+  str_s = str(s)
+  while s < 10**(num_of_dig-1):
+    s *= 10
+    str_s = '0' + str_s
+  return str_s
+
+#
+#
 # get images
 from io import BytesIO
 from PIL import Image
 import requests
+import time
 
 website_imgs = []
-x = 0
+index = 0
+
 for website_name in link_names:
   image_url = 'http://' + website_name + '/favicon.ico'
-  response = requests.get(image_url)
+  index += 1
+  print _make_dig(index, 3), '/', len(link_names)
+  try:
+    response = requests.get(image_url)
+    time.sleep(1)
+  except requests.exceptions.ConnectionError:
+    print "Error connecting to", image_url + ".", "Connection reset."
+    error(-1)
   try:
     img = Image.open(BytesIO(response.content)).convert('HSV')
     website_imgs.append(img)
   except IOError:
     website_imgs.append(None)
-  x += 1
-  if x > 3: break
 
 #
 #
@@ -101,6 +118,8 @@ for img in website_imgs:
 #
 # export objects
 import json
+
+final_objs = []
 for x in xrange(len(all_image_colors)):
   site_url = link_names[x]
   dot_pos = site_url.index('.')
@@ -112,4 +131,9 @@ for x in xrange(len(all_image_colors)):
     'tld': site_tld,
     'hue': site_favicon_hue
   }
-  print json.dumps(obj) + ','
+  final_objs.append( json.dumps(obj) )
+
+#
+#
+# print
+print final_objs
