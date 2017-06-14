@@ -78,6 +78,10 @@ class FavicoImage extends React.Component {
 /*
  * Main initialization code
  */
+
+// Sort data
+topSites.sort((a,b) => { return a.hue - b.hue });
+// Initialize DOM
 let container = document.getElementById('container');
 let reactApp = React.createElement(FavicoApp, { 'sites': topSites });
 ReactDOM.render(reactApp, container);

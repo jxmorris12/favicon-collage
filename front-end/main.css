@@ -1,13 +1,12 @@
 /* jack morris 06/13/17 */
 
 .favico-container {
-  display: -webkit-inline-flex; /* Safari */
-  display: inline-flex;
+  display: inline-block;
   flex-direction: row;
 }
 
 .favico-box {
-  flex: 1;
+  display: inherit;
   width: 64px;
   height: 64px;
 }
