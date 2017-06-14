@@ -40,9 +40,9 @@ def _make_dig(s, num_of_dig):
 #
 #
 # special favico redirect links
-favico_cache = {
-  'usda.gov': '/themes/usda/img/favicons/favicon.ico'
-}
+favico_local = ['fda.gov', 'baidu.com', 'usda.gov', 'businessweek.com', '51.la', 'vice.com', 'ocn.ne.jp', 'epa.gov', 'dribbble.com', 
+                'mirror.co.uk', 'dropboxusercontent.com', 'admin.ch', 'nhk.or.jp', 'telnames.net', 'paypal.com', 'umblr.com', 'globo.com',
+                'army.mil', 'dot.gov','istockphoto.com', 'ed.gov', 'gpo.gov', 'state.tx.us', 'indiegogo.com']
 #
 #
 # get images
@@ -54,29 +54,38 @@ import time
 
 website_imgs = []
 index = 0
-
+num_blank_spaces = 30
 print "Downloading images."
 num_dig_for_str = str(len(link_names))
+_count = 0
+_max_count = None
 for website_name in link_names:
-  image_url = 'http://' + website_name 
-  if website_name in favico_cache:
-    image_url += favico_cache[website_name]
-  else:
-    image_url += '/favicon.ico'
+  if _count == _max_count: break
+  _count += 1
+  image_url = 'http://' + website_name + '/favicon.ico'
   index += 1
-  out_update_str = _make_dig(index, len(num_dig_for_str)) + ' / ' + num_dig_for_str
+  out_update_str = _make_dig(index, len(num_dig_for_str)) + ' / ' + num_dig_for_str + ' | ' + website_name + ' ' * num_blank_spaces
   sys.stdout.write('%s\r' % out_update_str)
   sys.stdout.flush()
   try:
+    # Check for icon in cache
+    if website_name in favico_local: 
+      raise requests.exceptions.ConnectionError()
+    # If not in local storage, get
     response = requests.get(image_url)
     # Sleep for peace of mind
     time.sleep(0)
   except requests.exceptions.ConnectionError:
-    # Site blocks this type of request. Favicon hosted locally
-    image_filename = 'ico/' + website_name + '.favicon.ico'
-    img = Image.open(image_filename)
-    website_imgs.append(img)
-    continue
+    try:
+      # Site blocks this type of request. Favicon hosted locally
+      image_filename = 'ico/' + website_name + '.favicon.ico'
+      img = Image.open(image_filename)
+      website_imgs.append(img)
+      continue
+    except Exception as e:
+      print "Error at", index, website_name
+      print e
+      exit(-1)
   try:
     img = Image.open(BytesIO(response.content))
     # For some reason, I have to convert to RGB...
@@ -96,6 +105,7 @@ print "Finished image download."
 # let me discard invalid colors -- too close to black or white (within 2%, I said arbitrarily) 
 import numpy
 def color_dist(a,b):  
+  print a, b
   # math.hypot should support three arguments :( 
   x = a[0] - b[0]
   y = a[1] - b[1]
@@ -113,7 +123,9 @@ def is_too_white(c):
   return color_dist(_white, c) < _threshold
 
 def color_is_valid(c):
-  return not (is_too_white(c) or is_too_black(c))
+  if type(c) == int:
+    c = (0, 0, c)
+  return not is_too_white(c) and not is_too_black(c) # Haha. De Morgan's law
 
 def get_hue_from_color(hsv):
   return hsv[0]
@@ -126,7 +138,7 @@ for img in website_imgs:
   if not img:
     # No favicon.ico found
     all_image_colors.append(-1)
-    break
+    continue
   img.load()
   pixels = img.getdata()
   w,h = img.size
@@ -135,11 +147,17 @@ for img in website_imgs:
   for i in xrange(w):
     for j in xrange(h):
       hsv_val = pixels[(i * h) + j]
+      if type(hsv_val) == int: 
+        hsv_val = (0, 0, hsv_val) # BW to HSV
       if color_is_valid(hsv_val):
         hue_tally += 1
         hue_total += get_hue_from_color(hsv_val)
-  all_image_colors.append(hue_total / float(hue_tally))
+  if hue_tally == 0:
+    all_image_colors.append(-1)
+  else:
+    all_image_colors.append(hue_total / float(hue_tally))
 
+print "Finished finding colors."
 #
 #
 # export objects
@@ -163,3 +181,5 @@ for x in xrange(len(all_image_colors)):
 #
 # print
 print final_objs
+print
+print "Exported", len(final_objs), "objects."
